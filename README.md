@@ -71,7 +71,8 @@ echo "$four"
 # {∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}
 
 # Verify: 4 contains 3 as an element
-member "$three" "$four" && echo "3 ∈ 4  ✓"
+bool member "$three" "$four"   # true
+bool member "$four"  "$three"  # false
 ```
 
 Notice the name length doubles each step — the structure is self-similar:
@@ -112,7 +113,7 @@ six=$(nat_mul "$two" "$three")
 echo $(nat_show "$six")  # 6
 
 # Commutativity — check it set-theoretically:
-eq "$(nat_add "$two" "$three")" "$(nat_add "$three" "$two")" && echo "2+3 = 3+2  ✓"
+bool eq "$(nat_add "$two" "$three")" "$(nat_add "$three" "$two")"   # true  (commutativity)
 ```
 
 ### Power set
@@ -197,13 +198,13 @@ All operations reduce to `nat_add`, `nat_mul`, `opair`, `fst`, `snd`, `eq`:
 
 ```bash
 result=$(int_add "$minus_two" "$plus_three")
-int_eq "$result" "$(int_pos 1)" && echo "−2 + 3 = +1  ✓"
-int_show "$result"   # 1
+bool int_eq "$result" "$(int_pos 1)"   # true
+int_show "$result"                     # 1
 ```
 
 ```bash
 product=$(int_mul "$(int_neg 2)" "$(int_neg 2)")
-int_eq "$product" "$(int_pos 4)" && echo "(−2) × (−2) = +4  ✓"
+bool int_eq "$product" "$(int_pos 4)"  # true
 ```
 
 The sign rule is not assumed — it falls out of the pair representation:
@@ -248,7 +249,7 @@ two_fourths=$(rat_make "$(int_pos 2)" "$(nat 4)")
 rat_show "$one_half"      # 1/2
 rat_show "$two_fourths"   # 2/4
 
-rat_eq "$one_half" "$two_fourths" && echo "1/2 = 2/4  ✓"
+bool rat_eq "$one_half" "$two_fourths"   # true
 ```
 
 ```bash
@@ -425,6 +426,7 @@ source scratch.sh   # lsu (list universe), ord N, sp SET
 | `choose A` | one element from A |
 | `is_singleton A` | A ≠ ∅ ∧ A \ {choose A} = ∅ |
 | `is_regular A` | A ∉ A |
+| `bool pred [args]` | print "true"/"false" for any predicate |
 | `cardinality A` | \|A\| as bash integer (display only) |
 
 ### Ordered pairs and relations

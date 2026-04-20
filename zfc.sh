@@ -60,6 +60,10 @@ exists() { [[ -f "$U/$1" ]]; }
 
 require() { exists "$1" || { echo "ERROR: set '$1' not in universe" >&2; return 1; }; }
 
+# bool PREDICATE [ARGS...] — print "true" or "false" for any predicate function
+# Usage: bool member x A    bool eq A B    bool subset A B
+bool() { "$@" 2>/dev/null && echo "true" || echo "false"; }
+
 # is_singleton A — true iff A has exactly one element (A ≠ ∅ and A \ {choose A} = ∅)
 is_singleton() {
     require "$1" || return 1
