@@ -153,6 +153,16 @@ done
 
 ## Part II — Integers
 
+> **Natural numbers are NOT ordered pairs.**  
+> Von Neumann ordinal `n` is a plain set `{0,1,...,n−1}` built from `∅` via `∪` and `{}`.  
+> It has no `fst`/`snd`. Calling `snd` on a natural number fails:
+> ```bash
+> two=$(nat 2)
+> bool is_opair "$two"   # false
+> snd "$two"             # ERROR: cannot choose from empty set
+> ```
+> `fst`/`snd` only work on things built with `opair`.
+
 Natural numbers only go forward. The ZFC fix: represent an integer as a **pair of naturals** (positive part, negative part):
 
 ```
