@@ -100,7 +100,12 @@ Defined purely via `∪` and `{}` — no arithmetic:
 α × (β ∪ {β})   = nat_add( nat_mul(α, β),  α )
 ```
 
-The `×` here is **not** the Cartesian product. It is the recursive definition of ordinal multiplication: "α times β" means "add α to itself β times", unrolled via the successor structure. No pairing, no `opair`, no `fst`/`snd`.
+The `×` here is **not** the Cartesian product. It is ordinal multiplication, defined by structural recursion on the successor shape of β — no counting, no arithmetic, no `opair`:
+
+- **Base:** `α × ∅ = ∅` — the empty ordinal absorbs everything
+- **Step:** `α × S(β) = nat_add(nat_mul(α, β), α)` — peel one `{}` layer from β, recurse, then add α
+
+The recursion bottoms out when β is exhausted down to ∅. No notion of "how many times" is needed — only "is β empty, or does it have a predecessor?"
 
 Unrolling `2 × 3` by hand:
 
@@ -138,6 +143,45 @@ echo $(nat_show "$six")  # 6
 # Commutativity — check it set-theoretically:
 bool eq "$(nat_add "$two" "$three")" "$(nat_add "$three" "$two")"   # true  (commutativity)
 ```
+
+#### Multiplication at the ordinal level
+
+The result of `nat_mul` is always a Von Neumann ordinal — a plain set of the right size. Three instructive cases:
+
+**`0 × 1`** — base case fires immediately:
+```
+0 × 1  =  0 × (∅ ∪ {∅})
+       =  nat_add(0 × ∅, 0)
+       =  nat_add(∅, ∅)
+       =  ∅
+```
+Zero times anything is ∅. The result has 0 elements.
+
+**`1 × 3`** — adding 1 three times:
+```
+1 × 3  =  nat_add(1 × 2, 1)
+1 × 2  =  nat_add(1 × 1, 1)
+1 × 1  =  nat_add(1 × ∅, 1)  =  nat_add(∅, 1)  =  1
+→  1 × 2  =  nat_add(1, 1)  =  2
+→  1 × 3  =  nat_add(2, 1)  =  3
+```
+One is the identity for multiplication. The result is ordinal 3: `{∅,{∅},{∅,{∅}}}` — a set with 3 elements.
+
+**`2 × 3`** — already unrolled above, result is ordinal 6.
+
+```bash
+zero=$(nat 0); one=$(nat 1); two=$(nat 2); three=$(nat 3)
+
+r=$(nat_mul "$zero" "$one");  echo "$r"              # ∅
+echo $(nat_show "$r")                                # 0
+
+r=$(nat_mul "$one" "$three"); echo "$r"              # {∅,{∅},{∅,{∅}}}
+echo $(nat_show "$r")                                # 3
+
+r=$(nat_mul "$two" "$three"); echo $(nat_show "$r")  # 6
+```
+
+The result is always a set whose number of elements equals the expected product — no numerals involved, only `∪` and `{}`.
 
 ### Power set
 
