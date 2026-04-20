@@ -9,11 +9,11 @@
 nat()     { build_ordinal "$1"; }
 
 # pred_ord α — the predecessor of a non-zero Von Neumann ordinal.
-# Elements are sorted by length (shorter = smaller ordinal), so the last
-# line of the file is always the largest element, i.e. α − 1.
+# Set-theoretically: ∪α (the union of all elements of α).
+# For Von Neumann ordinals: ∪{0,1,...,n-1} = n-1.
 pred_ord() {
     [[ -s "$U/$1" ]] || { echo "ERROR: ∅ has no predecessor" >&2; return 1; }
-    tail -1 "$U/$1"
+    union "$1"
 }
 
 # α ∪ ∅            = α

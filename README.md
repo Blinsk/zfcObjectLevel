@@ -102,7 +102,15 @@ nat_mul(α, β ∪ {β})    =  nat_add( nat_mul(α, β),  α )
 
 Both are defined by structural recursion on the successor shape of β — no counting, no arithmetic, no `opair`. The only question at each step: *is β empty, or does it have a predecessor?*
 
-The predecessor `β ∪ {β} → β` is the last line of the file (larger ordinals sort last by name length).
+The predecessor of a non-zero ordinal β is **∪β** — the union of all its elements. For Von Neumann ordinals this is always the largest element, i.e. β − 1:
+
+```
+∪{∅}              = ∅                    (pred of 1 = 0)
+∪{∅,{∅}}          = ∅ ∪ {∅}       = {∅}  (pred of 2 = 1)
+∪{∅,{∅},{∅,{∅}}}  = ∅ ∪ {∅} ∪ {∅,{∅}}   (pred of 3 = 2)
+```
+
+No bash tricks — `pred_ord β` is just `union β`.
 
 **Try yourself:**
 
@@ -512,7 +520,7 @@ source scratch.sh   # lsu (list universe), ord N, sp SET
 | Function | Definition |
 |----------|-----------|
 | `nat n` | Von Neumann ordinal n (bridge from bash) |
-| `pred_ord A` | last line of file = immediate predecessor |
+| `pred_ord A` | ∪A — union of all elements = immediate predecessor |
 | `nat_add A B` | A ∪ (B ∪ {B}) recursion via `∪` and `{}` |
 | `nat_mul A B` | A × (B ∪ {B}) recursion via `nat_add` |
 | `nat_to_int N` | opair(N, ∅) — embed ordinal into integers |
