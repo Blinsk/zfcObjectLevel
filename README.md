@@ -100,6 +100,29 @@ Defined purely via `∪` and `{}` — no arithmetic:
 α × (β ∪ {β})   = nat_add( nat_mul(α, β),  α )
 ```
 
+The `×` here is **not** the Cartesian product. It is the recursive definition of ordinal multiplication: "α times β" means "add α to itself β times", unrolled via the successor structure. No pairing, no `opair`, no `fst`/`snd`.
+
+Unrolling `2 × 3` by hand:
+
+```
+2 × 3  =  2 × (2 ∪ {2})          — 3 is successor of 2
+       =  nat_add(2 × 2, 2)
+
+2 × 2  =  2 × (1 ∪ {1})          — 2 is successor of 1
+       =  nat_add(2 × 1, 2)
+
+2 × 1  =  2 × (∅ ∪ {∅})          — 1 is successor of ∅
+       =  nat_add(2 × ∅, 2)
+
+2 × ∅  =  ∅                       — base case
+
+→  2 × 1  =  nat_add(∅, 2)  =  2
+→  2 × 2  =  nat_add(2, 2)  =  4
+→  2 × 3  =  nat_add(4, 2)  =  6
+```
+
+Every step is a set union. The result `6` is the ordinal `{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}},{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}},{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}},{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}}}` — a set with 6 elements.
+
 The predecessor `β ∪ {β} → β` is the last line of the file (larger ordinals sort last by name length).
 
 **Try yourself:**
