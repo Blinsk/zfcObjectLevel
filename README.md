@@ -93,40 +93,14 @@ Notice the name length doubles each step — the structure is self-similar:
 Defined purely via `∪` and `{}` — no arithmetic:
 
 ```
-α ∪ ∅            = α
-α ∪ (β ∪ {β})   = nat_add(α, β) ∪ { nat_add(α, β) }
+nat_add(α, ∅)          =  α
+nat_add(α, β ∪ {β})    =  nat_add(α, β) ∪ { nat_add(α, β) }
 
-α × ∅            = ∅
-α × (β ∪ {β})   = nat_add( nat_mul(α, β),  α )
+nat_mul(α, ∅)          =  ∅
+nat_mul(α, β ∪ {β})    =  nat_add( nat_mul(α, β),  α )
 ```
 
-The `×` here is **not** the Cartesian product. It is ordinal multiplication, defined by structural recursion on the successor shape of β — no counting, no arithmetic, no `opair`:
-
-- **Base:** `α × ∅ = ∅` — the empty ordinal absorbs everything
-- **Step:** `α × S(β) = nat_add(nat_mul(α, β), α)` — peel one `{}` layer from β, recurse, then add α
-
-The recursion bottoms out when β is exhausted down to ∅. No notion of "how many times" is needed — only "is β empty, or does it have a predecessor?"
-
-Unrolling `2 × 3` by hand:
-
-```
-2 × 3  =  2 × (2 ∪ {2})          — 3 is successor of 2
-       =  nat_add(2 × 2, 2)
-
-2 × 2  =  2 × (1 ∪ {1})          — 2 is successor of 1
-       =  nat_add(2 × 1, 2)
-
-2 × 1  =  2 × (∅ ∪ {∅})          — 1 is successor of ∅
-       =  nat_add(2 × ∅, 2)
-
-2 × ∅  =  ∅                       — base case
-
-→  2 × 1  =  nat_add(∅, 2)  =  2
-→  2 × 2  =  nat_add(2, 2)  =  4
-→  2 × 3  =  nat_add(4, 2)  =  6
-```
-
-Every step is a set union. The result `6` is the ordinal `{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}},{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}},{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}},{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}}}` — a set with 6 elements.
+Both are defined by structural recursion on the successor shape of β — no counting, no arithmetic, no `opair`. The only question at each step: *is β empty, or does it have a predecessor?*
 
 The predecessor `β ∪ {β} → β` is the last line of the file (larger ordinals sort last by name length).
 
@@ -146,28 +120,42 @@ bool eq "$(nat_add "$two" "$three")" "$(nat_add "$three" "$two")"   # true  (com
 
 #### Multiplication at the ordinal level
 
-The result of `nat_mul` is always a Von Neumann ordinal — a plain set of the right size. Three instructive cases:
+The result of `nat_mul` is always a Von Neumann ordinal — a plain set of the right cardinality. Three instructive cases:
 
-**`0 × 1`** — base case fires immediately:
+**`nat_mul(0, 1)`** — base case fires immediately:
 ```
-0 × 1  =  0 × (∅ ∪ {∅})
-       =  nat_add(0 × ∅, 0)
-       =  nat_add(∅, ∅)
-       =  ∅
+nat_mul(∅, {∅})  =  nat_mul(∅, ∅ ∪ {∅})
+                 =  nat_add( nat_mul(∅, ∅),  ∅ )
+                 =  nat_add( ∅,  ∅ )
+                 =  ∅
 ```
-Zero times anything is ∅. The result has 0 elements.
+`nat_mul(∅, β) = ∅` for any β. The result has 0 elements.
 
-**`1 × 3`** — adding 1 three times:
+**`nat_mul(1, 3)`** — peeling the successor structure of 3:
 ```
-1 × 3  =  nat_add(1 × 2, 1)
-1 × 2  =  nat_add(1 × 1, 1)
-1 × 1  =  nat_add(1 × ∅, 1)  =  nat_add(∅, 1)  =  1
-→  1 × 2  =  nat_add(1, 1)  =  2
-→  1 × 3  =  nat_add(2, 1)  =  3
-```
-One is the identity for multiplication. The result is ordinal 3: `{∅,{∅},{∅,{∅}}}` — a set with 3 elements.
+nat_mul({∅}, {∅,{∅},{∅,{∅}}})
+  =  nat_add( nat_mul({∅}, {∅,{∅}}),  {∅} )
 
-**`2 × 3`** — already unrolled above, result is ordinal 6.
+nat_mul({∅}, {∅,{∅}})
+  =  nat_add( nat_mul({∅}, {∅}),  {∅} )
+
+nat_mul({∅}, {∅})
+  =  nat_add( nat_mul({∅}, ∅),  {∅} )
+  =  nat_add( ∅,  {∅} )
+  =  {∅}
+
+→  nat_mul({∅}, {∅,{∅}})   =  nat_add({∅}, {∅})   =  {∅,{∅}}
+→  nat_mul({∅}, {∅,{∅},{∅,{∅}}})  =  nat_add({∅,{∅}}, {∅})  =  {∅,{∅},{∅,{∅}}}
+```
+1 is the identity. The result is ordinal 3: `{∅,{∅},{∅,{∅}}}` — a set with 3 elements.
+
+**`nat_mul(2, 3)`** — same structure, result is ordinal 6:
+```
+nat_mul({∅,{∅}}, {∅})           =  nat_add(∅, {∅,{∅}})                =  {∅,{∅}}
+nat_mul({∅,{∅}}, {∅,{∅}})       =  nat_add({∅,{∅}}, {∅,{∅}})          =  {∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}
+nat_mul({∅,{∅}}, {∅,{∅},{∅,{∅}}})  =  nat_add({∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}, {∅,{∅}})  =  ordinal 6
+```
+Every step is a `∪` on sets. No symbol outside `∪`, `{}`, and `∅` is needed.
 
 ```bash
 zero=$(nat 0); one=$(nat 1); two=$(nat 2); three=$(nat 3)
