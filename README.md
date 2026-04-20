@@ -90,79 +90,107 @@ Notice the name length doubles each step — the structure is self-similar:
 
 ### Addition and multiplication
 
-Defined purely via `∪` and `{}` — no arithmetic:
+Both operations reduce to a single set-theoretic primitive: **successor**:
+
+```
+successor(α)  =  α ∪ {α}
+```
+
+That is all. Addition is applying `successor` driven by the structure of β. Multiplication is applying addition driven by the structure of β.
+
+**Recursive definitions** (purely via `∪` and `{}`):
 
 ```
 nat_add(α, ∅)          =  α
 nat_add(α, β ∪ {β})    =  nat_add(α, β) ∪ { nat_add(α, β) }
+                        =  successor( nat_add(α, β) )
 
 nat_mul(α, ∅)          =  ∅
 nat_mul(α, β ∪ {β})    =  nat_add( nat_mul(α, β),  α )
 ```
 
-Both are defined by structural recursion on the successor shape of β — no counting, no arithmetic, no `opair`. The only question at each step: *is β empty, or does it have a predecessor?*
+The only question at each step: *is β empty, or does it have a predecessor?*
 
-The predecessor of a non-zero ordinal β is **∪β** — the union of all its elements. For Von Neumann ordinals this is always the largest element, i.e. β − 1:
+The predecessor of a non-zero ordinal β is **∪β** — the union of all its elements:
 
 ```
-∪{∅}              = ∅                    (pred of 1 = 0)
-∪{∅,{∅}}          = ∅ ∪ {∅}       = {∅}  (pred of 2 = 1)
-∪{∅,{∅},{∅,{∅}}}  = ∅ ∪ {∅} ∪ {∅,{∅}}   (pred of 3 = 2)
+∪{∅}              = ∅                          (pred of 1 = 0)
+∪{∅,{∅}}          = ∅ ∪ {∅}             = {∅}  (pred of 2 = 1)
+∪{∅,{∅},{∅,{∅}}}  = ∅ ∪ {∅} ∪ {∅,{∅}}  = {∅,{∅}}  (pred of 3 = 2)
 ```
 
-No bash tricks — `pred_ord β` is just `union β`.
+`pred_ord β` is just `union β` — no bash tricks.
 
-**Try yourself:**
+#### Addition by hand: nat_add(1, 2)
+
+```
+nat_add({∅}, {∅,{∅}})
+  =  successor( nat_add({∅}, {∅}) )         — peel one {} from 2, get pred = 1
+
+nat_add({∅}, {∅})
+  =  successor( nat_add({∅}, ∅) )           — peel one {} from 1, get pred = 0
+
+nat_add({∅}, ∅)  =  {∅}                     — base case
+
+→  nat_add({∅}, {∅})    =  successor({∅})   =  {∅} ∪ {{∅}}  =  {∅,{∅}}
+→  nat_add({∅}, {∅,{∅}})=  successor({∅,{∅}})
+                         =  {∅,{∅}} ∪ {{∅,{∅}}}
+                         =  {∅,{∅},{∅,{∅}}}   ← ordinal 3
+```
+
+Every `∪` is a set union. Every `{}` wraps a set in a singleton.
+
+**Try yourself — addition as pure set operations:**
 
 ```bash
-five=$(nat_add "$two" "$three")
-echo "$five"             # {∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}},{∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}}
-echo $(nat_show "$five") # 5
+one=$(nat 1); two=$(nat 2)
 
-six=$(nat_mul "$two" "$three")
-echo $(nat_show "$six")  # 6
+# nat_add(1, 2) manually:
+step1=$(binary_union "$one" "$(singleton "$one")")    # successor(1) = {∅,{∅}}
+step2=$(binary_union "$step1" "$(singleton "$step1")") # successor(2) = {∅,{∅},{∅,{∅}}}
+echo "$step2"              # {∅,{∅},{∅,{∅}}}  — same as nat 3
 
-# Commutativity — check it set-theoretically:
-bool eq "$(nat_add "$two" "$three")" "$(nat_add "$three" "$two")"   # true  (commutativity)
+# Verify it matches nat_add:
+bool eq "$step2" "$(nat_add "$one" "$two")"   # true
 ```
 
-#### Multiplication at the ordinal level
+#### Multiplication by hand: nat_mul(2, 3)
 
-The result of `nat_mul` is always a Von Neumann ordinal — a plain set of the right cardinality. Three instructive cases:
-
-**`nat_mul(0, 1)`** — base case fires immediately:
 ```
-nat_mul(∅, {∅})  =  nat_mul(∅, ∅ ∪ {∅})
-                 =  nat_add( nat_mul(∅, ∅),  ∅ )
-                 =  nat_add( ∅,  ∅ )
-                 =  ∅
-```
-`nat_mul(∅, β) = ∅` for any β. The result has 0 elements.
+nat_mul({∅,{∅}}, {∅})
+  =  nat_add( nat_mul({∅,{∅}}, ∅),  {∅,{∅}} )
+  =  nat_add( ∅,  {∅,{∅}} )
+  =  successor(successor(∅))  =  {∅,{∅}}
 
-**`nat_mul(1, 3)`** — peeling the successor structure of 3:
-```
-nat_mul({∅}, {∅,{∅},{∅,{∅}}})
-  =  nat_add( nat_mul({∅}, {∅,{∅}}),  {∅} )
+nat_mul({∅,{∅}}, {∅,{∅}})
+  =  nat_add( {∅,{∅}},  {∅,{∅}} )
+  =  successor(successor({∅,{∅}}))  =  {∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}
 
-nat_mul({∅}, {∅,{∅}})
-  =  nat_add( nat_mul({∅}, {∅}),  {∅} )
-
-nat_mul({∅}, {∅})
-  =  nat_add( nat_mul({∅}, ∅),  {∅} )
-  =  nat_add( ∅,  {∅} )
-  =  {∅}
-
-→  nat_mul({∅}, {∅,{∅}})   =  nat_add({∅}, {∅})   =  {∅,{∅}}
-→  nat_mul({∅}, {∅,{∅},{∅,{∅}}})  =  nat_add({∅,{∅}}, {∅})  =  {∅,{∅},{∅,{∅}}}
+nat_mul({∅,{∅}}, {∅,{∅},{∅,{∅}}})
+  =  nat_add( {∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}},  {∅,{∅}} )
+  =  successor(successor({∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}) )
+  =  ordinal 6
 ```
-1 is the identity. The result is ordinal 3: `{∅,{∅},{∅,{∅}}}` — a set with 3 elements.
 
-**`nat_mul(2, 3)`** — same structure, result is ordinal 6:
+**Try yourself — multiplication as pure set operations:**
+
+```bash
+zero=$(nat 0); one=$(nat 1); two=$(nat 2); three=$(nat 3)
+
+# nat_mul(0, 1) — base case, result is ∅
+r=$(nat_mul "$zero" "$one"); echo "$r"               # ∅
+
+# nat_mul(1, 3) — successor applied 3 times starting from ∅
+r=$(nat_mul "$one" "$three"); echo "$r"              # {∅,{∅},{∅,{∅}}}
+echo $(nat_show "$r")                                # 3
+
+# nat_mul(2, 3) — result is ordinal 6
+r=$(nat_mul "$two" "$three"); echo $(nat_show "$r")  # 6
+
+# Verify 2*3 = 3*2 set-theoretically:
+bool eq "$(nat_mul "$two" "$three")" "$(nat_mul "$three" "$two")"   # true
 ```
-nat_mul({∅,{∅}}, {∅})           =  nat_add(∅, {∅,{∅}})                =  {∅,{∅}}
-nat_mul({∅,{∅}}, {∅,{∅}})       =  nat_add({∅,{∅}}, {∅,{∅}})          =  {∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}
-nat_mul({∅,{∅}}, {∅,{∅},{∅,{∅}}})  =  nat_add({∅,{∅},{∅,{∅}},{∅,{∅},{∅,{∅}}}}, {∅,{∅}})  =  ordinal 6
-```
+
 Every step is a `∪` on sets. No symbol outside `∪`, `{}`, and `∅` is needed.
 
 ```bash
