@@ -426,7 +426,7 @@ source scratch.sh   # lsu (list universe), ord N, sp SET
 | `choose A` | one element from A |
 | `is_singleton A` | A ≠ ∅ ∧ A \ {choose A} = ∅ |
 | `is_regular A` | A ∉ A |
-| `bool pred [args]` | print "true"/"false" for any predicate |
+| `bool pred [args]` | print "true"/"false" — pass predicate name directly, not via `$()` |
 | `cardinality A` | \|A\| as bash integer (display only) |
 
 ### Ordered pairs and relations
