@@ -16,8 +16,8 @@ pred_ord() {
     tail -1 "$U/$1"
 }
 
-# α + 0     = α
-# α + S(β)  = S(α + β)
+# α ∪ ∅            = α
+# α ∪ (β ∪ {β})   = nat_add(α,β) ∪ {nat_add(α,β)}
 nat_add() {
     require "$1" || return 1
     require "$2" || return 1
@@ -25,11 +25,11 @@ nat_add() {
     local pred sum
     pred=$(pred_ord "$2") || return 1
     sum=$(nat_add "$1" "$pred") || return 1
-    successor "$sum"
+    binary_union "$sum" "$(singleton "$sum")"
 }
 
-# α × 0     = ∅
-# α × S(β)  = (α × β) + α
+# α × ∅            = ∅
+# α × (β ∪ {β})   = nat_mul(α,β) ∪ α   (i.e. nat_add of the previous product)
 nat_mul() {
     require "$1" || return 1
     require "$2" || return 1

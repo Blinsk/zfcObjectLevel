@@ -76,17 +76,18 @@ Notice the name length doubles each step:
 
 ### Arithmetic
 
-`nat_add` and `nat_mul` follow the recursive set-theoretic definitions:
+`nat_add` and `nat_mul` are defined purely in terms of `∪` and `{}`.
+`S(n) = n ∪ {n}` is not a primitive — it unfolds into union:
 
 ```
-α + 0     = α
-α + S(β)  = S(α + β)
+α ∪ ∅            = α
+α ∪ (β ∪ {β})   = nat_add(α, β) ∪ { nat_add(α, β) }
 
-α × 0     = ∅
-α × S(β)  = (α × β) + α
+α × ∅            = ∅
+α × (β ∪ {β})   = nat_add( nat_mul(α, β),  α )
 ```
 
-The predecessor `S(β) → β` is the last line of the file — our sort order (by name length) puts larger ordinals last, so `tail -1` of an ordinal file is always its immediate predecessor.
+The predecessor `β ∪ {β} → β` is the last line of the file — our sort order (by name length) puts larger ordinals last, so `tail -1` of an ordinal file is always the immediate predecessor.
 
 ```bash
 five=$(nat_add "$two" "$three")
