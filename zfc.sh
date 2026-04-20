@@ -60,6 +60,16 @@ exists() { [[ -f "$U/$1" ]]; }
 
 require() { exists "$1" || { echo "ERROR: set '$1' not in universe" >&2; return 1; }; }
 
+# is_singleton A — true iff A has exactly one element (A ≠ ∅ and A \ {choose A} = ∅)
+is_singleton() {
+    require "$1" || return 1
+    [[ -s "$U/$1" ]] || return 1
+    local a rest
+    a=$(choose "$1") || return 1
+    rest=$(difference "$1" "$(singleton "$a")") || return 1
+    [[ ! -s "$U/$rest" ]]
+}
+
 # ---------------------------------------------------------------------------
 # Axiom 1 — Extensionality
 # ---------------------------------------------------------------------------
@@ -127,27 +137,27 @@ binary_union() {
 
 power() {
     require "$1" || return 1
-    local elements=()
-    while IFS= read -r line; do
-        elements+=("$line")
-    done < "$U/$1"
-    local n=${#elements[@]}
-    local pow_tmp
-    pow_tmp=$(mktemp)
-
-    local i bit subset_tmp subset_name
-    for (( i=0; i < (1 << n); i++ )); do
-        subset_tmp=$(mktemp)
-        for (( bit=0; bit < n; bit++ )); do
-            if (( (i >> bit) & 1 )); then
-                echo "${elements[$bit]}" >> "$subset_tmp"
-            fi
-        done
-        subset_name=$(commit_set "$subset_tmp")
-        echo "$subset_name" >> "$pow_tmp"
-    done
-
-    commit_set "$pow_tmp"
+    # 𝒫(∅) = {∅}
+    if [[ ! -s "$U/$1" ]]; then
+        singleton "∅"
+        return
+    fi
+    # 𝒫(A) = 𝒫(A') ∪ { B ∪ {a} : B ∈ 𝒫(A') }   where a = choose(A), A' = A \ {a}
+    local a sa A_prime prev_power
+    a=$(choose "$1") || return 1
+    sa=$(singleton "$a") || return 1
+    A_prime=$(difference "$1" "$sa") || return 1
+    prev_power=$(power "$A_prime") || return 1
+    local extended_tmp
+    extended_tmp=$(mktemp)
+    while IFS= read -r B; do
+        local B_ext
+        B_ext=$(binary_union "$B" "$sa") || return 1
+        echo "$B_ext" >> "$extended_tmp"
+    done < "$U/$prev_power"
+    local extended
+    extended=$(commit_set "$extended_tmp") || return 1
+    binary_union "$prev_power" "$extended"
 }
 
 # ---------------------------------------------------------------------------
@@ -320,19 +330,13 @@ opair() {
 # fst p — first component of a Kuratowski ordered pair
 fst() {
     require "$1" || return 1
-    local n
-    n=$(cardinality "$1" | tr -d ' ')
-    if [[ $n -eq 1 ]]; then
-        # {{a}} case: a = b
-        local inner
-        inner=$(choose "$1") || return 1
-        choose "$inner"
+    if is_singleton "$1"; then
+        # p = {{a}}: a = b case
+        choose "$(choose "$1")"
     else
-        # find the singleton element {a}, return choose({a}) = a
+        # p = {{a},{a,b}}: find the singleton element {a}
         while IFS= read -r elem; do
-            local c
-            c=$(cardinality "$elem" | tr -d ' ')
-            if [[ $c -eq 1 ]]; then
+            if is_singleton "$elem"; then
                 choose "$elem"
                 return
             fi
@@ -344,21 +348,16 @@ fst() {
 # snd p — second component of a Kuratowski ordered pair
 snd() {
     require "$1" || return 1
-    local n
-    n=$(cardinality "$1" | tr -d ' ')
-    if [[ $n -eq 1 ]]; then
-        # {{a}} case: a = b, snd = fst
+    if is_singleton "$1"; then
+        # p = {{a}}: a = b, snd = fst
         fst "$1"
     else
-        local a
+        local a sa
         a=$(fst "$1") || return 1
-        local sa
         sa=$(singleton "$a") || return 1
-        # find the 2-element member {a,b}, remove a, choose b
+        # find the non-singleton element {a,b}, remove a, choose b
         while IFS= read -r elem; do
-            local c
-            c=$(cardinality "$elem" | tr -d ' ')
-            if [[ $c -ge 2 ]]; then
+            if ! is_singleton "$elem"; then
                 local rest
                 rest=$(difference "$elem" "$sa") || return 1
                 choose "$rest"
@@ -372,14 +371,10 @@ snd() {
 # is_opair p — true if p looks like a Kuratowski ordered pair
 is_opair() {
     require "$1" || return 1
-    local n
-    n=$(cardinality "$1" | tr -d ' ')
-    [[ $n -eq 1 || $n -eq 2 ]] || return 1
+    [[ -s "$U/$1" ]] || return 1
     while IFS= read -r elem; do
         exists "$elem" || return 1
-        local c
-        c=$(cardinality "$elem" | tr -d ' ')
-        [[ $c -eq 1 ]] && return 0
+        is_singleton "$elem" && return 0
     done < "$U/$1"
     return 1
 }
@@ -460,9 +455,7 @@ is_function() {
     while IFS= read -r a; do
         local img
         img=$(rel_apply "$R" "$a") || return 1
-        local c
-        c=$(cardinality "$img" | tr -d ' ')
-        [[ $c -eq 1 ]] || return 1
+        is_singleton "$img" || return 1
     done < "$U/$A"
 }
 

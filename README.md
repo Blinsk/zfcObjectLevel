@@ -2,6 +2,7 @@
 
 > Sets are files. Elements are lines. The universe is a directory.
 > Every object in this manual exists on disk.
+> Every operation is defined set-theoretically — no arithmetic shortcuts.
 
 ---
 
@@ -75,7 +76,17 @@ Notice the name length doubles each step:
 
 ### Arithmetic
 
-`nat_add` and `nat_mul` use cardinality as a bridge to bash arithmetic, then rebuild the ordinal:
+`nat_add` and `nat_mul` follow the recursive set-theoretic definitions:
+
+```
+α + 0     = α
+α + S(β)  = S(α + β)
+
+α × 0     = ∅
+α × S(β)  = (α × β) + α
+```
+
+The predecessor `S(β) → β` is the last line of the file — our sort order (by name length) puts larger ordinals last, so `tail -1` of an ordinal file is always its immediate predecessor.
 
 ```bash
 five=$(nat_add "$two" "$three")
@@ -85,6 +96,13 @@ echo "2 × 3 = $(nat_show "$(nat_mul "$two" "$three")")"  # 2 × 3 = 6
 ```
 
 ### Power sets and membership
+
+`power` uses the set-theoretic recursion — no bitmask arithmetic:
+
+```
+𝒫(∅) = {∅}
+𝒫(A) = 𝒫(A') ∪ { B ∪ {a} : B ∈ 𝒫(A') }    where a = choose(A),  A' = A \ {a}
+```
 
 The power set of `n` has 2ⁿ elements — all subsets of n:
 
@@ -142,6 +160,10 @@ show_pretty "$plus_three"
 # }
 ```
 
+### Set structure
+
+`fst` and `snd` identify the singleton element of a Kuratowski pair using `is_singleton` — a purely set-theoretic test (`A ≠ ∅ ∧ A \ {choose A} = ∅`), with no element counting.
+
 ### Arithmetic on integers
 
 ```bash
@@ -182,7 +204,7 @@ rational r  =  opair(integer_numerator, natural_denominator)
 −3/4  =  opair(−3, 4)  =  opair(int_neg 3,  nat 4)
 ```
 
-Equality: `p/q = r/s` iff `p × s = r × q` as integers.
+Equality: `p/q = r/s` iff `p × s = r × q` as integers. Denominators (naturals) are lifted to integers via `nat_to_int n = opair(n, ∅)` — no bash arithmetic involved.
 
 ```bash
 one_half=$(rat_make "$(int_pos 1)" "$(nat 2)")

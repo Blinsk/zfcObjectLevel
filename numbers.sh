@@ -8,18 +8,36 @@
 
 nat()     { build_ordinal "$1"; }
 
-nat_add() {
-    local n m
-    n=$(cardinality "$1" | tr -d ' ')
-    m=$(cardinality "$2" | tr -d ' ')
-    build_ordinal $(( n + m ))
+# pred_ord α — the predecessor of a non-zero Von Neumann ordinal.
+# Elements are sorted by length (shorter = smaller ordinal), so the last
+# line of the file is always the largest element, i.e. α − 1.
+pred_ord() {
+    [[ -s "$U/$1" ]] || { echo "ERROR: ∅ has no predecessor" >&2; return 1; }
+    tail -1 "$U/$1"
 }
 
+# α + 0     = α
+# α + S(β)  = S(α + β)
+nat_add() {
+    require "$1" || return 1
+    require "$2" || return 1
+    [[ ! -s "$U/$2" ]] && echo "$1" && return
+    local pred sum
+    pred=$(pred_ord "$2") || return 1
+    sum=$(nat_add "$1" "$pred") || return 1
+    successor "$sum"
+}
+
+# α × 0     = ∅
+# α × S(β)  = (α × β) + α
 nat_mul() {
-    local n m
-    n=$(cardinality "$1" | tr -d ' ')
-    m=$(cardinality "$2" | tr -d ' ')
-    build_ordinal $(( n * m ))
+    require "$1" || return 1
+    require "$2" || return 1
+    [[ ! -s "$U/$2" ]] && echo "∅" && return
+    local pred prod
+    pred=$(pred_ord "$2") || return 1
+    prod=$(nat_mul "$1" "$pred") || return 1
+    nat_add "$prod" "$1"
 }
 
 nat_show() { cardinality "$1" | tr -d ' '; }
@@ -71,16 +89,16 @@ int_show() {
 
 rat_make() { opair "$1" "$2"; }   # $1 = integer, $2 = natural > 0
 
+# nat_to_int n — embed a natural number (ordinal) into the integers as opair(n, ∅)
+nat_to_int() { opair "$1" "∅"; }
+
 rat_eq() {
-    # p/q = r/s  iff  p * s = r * q  (as integers)
+    # p/q = r/s  iff  p * s = r * q  (as integers, denominators lifted via nat_to_int)
     local pn pd rn rd
     pn=$(fst "$1") || return 1; pd=$(snd "$1") || return 1
     rn=$(fst "$2") || return 1; rd=$(snd "$2") || return 1
-    local pd_n rd_n
-    pd_n=$(cardinality "$pd" | tr -d ' ')
-    rd_n=$(cardinality "$rd" | tr -d ' ')
-    int_eq "$(int_mul "$pn" "$(int_pos "$rd_n")")" \
-           "$(int_mul "$rn" "$(int_pos "$pd_n")")"
+    int_eq "$(int_mul "$pn" "$(nat_to_int "$rd")")" \
+           "$(int_mul "$rn" "$(nat_to_int "$pd")")"
 }
 
 rat_show() {
