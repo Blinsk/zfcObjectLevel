@@ -12,17 +12,29 @@ canonicalize() {
     sort -u "$s" -o "$s"
 }
 
-set_name() {
-    local hash
-    hash=$(sort -u "$1" | sha256sum | cut -c1-8)
-    echo "$hash"
+structural_name() {
+    local tmp="$1"
+    [[ -s "$tmp" ]] || { echo "∅"; return; }
+    local name="{"
+    local first=1
+    while IFS= read -r e; do
+        [[ $first -eq 0 ]] && name+=","
+        name+="$e"
+        first=0
+    done < "$tmp"
+    name+="}"
+    echo "$name"
 }
 
 # commit_set: persist a tmp file to universe/ and return its canonical name.
-# Empty files always map to the named ∅.
+# Empty files always map to ∅. Elements are sorted by length then lexicographic,
+# so simpler (shorter-named) sets appear first — giving ordinals their natural order.
 commit_set() {
     local tmp="$1"
-    sort -u "$tmp" -o "$tmp"
+    local stmp="${tmp}.s"
+    # Sort: deduplicate, then order by name-length (shorter = simpler set first)
+    sort -u "$tmp" | awk '{ print length" "$0 }' | sort -n -s | sed 's/^[0-9]* //' > "$stmp"
+    mv "$stmp" "$tmp"
     if [[ ! -s "$tmp" ]]; then
         rm -f "$tmp"
         touch "$U/∅"
@@ -30,7 +42,12 @@ commit_set() {
         return
     fi
     local name
-    name=$(set_name "$tmp")
+    name=$(structural_name "$tmp")
+    if [[ ${#name} -gt 200 ]]; then
+        echo "ERROR: set too large to handle (name would be ${#name} chars — use smaller sets)" >&2
+        rm -f "$tmp"
+        return 1
+    fi
     if [[ ! -f "$U/$name" ]]; then
         mv "$tmp" "$U/$name"
     else
@@ -285,6 +302,178 @@ member() {
 cardinality() {
     require "$1" || return 1
     wc -l < "$U/$1"
+}
+
+# ---------------------------------------------------------------------------
+# Ordered Pairs (Kuratowski): (a,b) = {{a},{a,b}}
+# ---------------------------------------------------------------------------
+
+opair() {
+    require "$1" || return 1
+    require "$2" || return 1
+    local sa p
+    sa=$(singleton "$1") || return 1
+    p=$(pair "$1" "$2") || return 1
+    pair "$sa" "$p"
+}
+
+# fst p — first component of a Kuratowski ordered pair
+fst() {
+    require "$1" || return 1
+    local n
+    n=$(cardinality "$1" | tr -d ' ')
+    if [[ $n -eq 1 ]]; then
+        # {{a}} case: a = b
+        local inner
+        inner=$(choose "$1") || return 1
+        choose "$inner"
+    else
+        # find the singleton element {a}, return choose({a}) = a
+        while IFS= read -r elem; do
+            local c
+            c=$(cardinality "$elem" | tr -d ' ')
+            if [[ $c -eq 1 ]]; then
+                choose "$elem"
+                return
+            fi
+        done < "$U/$1"
+        echo "ERROR: fst: not an ordered pair" >&2; return 1
+    fi
+}
+
+# snd p — second component of a Kuratowski ordered pair
+snd() {
+    require "$1" || return 1
+    local n
+    n=$(cardinality "$1" | tr -d ' ')
+    if [[ $n -eq 1 ]]; then
+        # {{a}} case: a = b, snd = fst
+        fst "$1"
+    else
+        local a
+        a=$(fst "$1") || return 1
+        local sa
+        sa=$(singleton "$a") || return 1
+        # find the 2-element member {a,b}, remove a, choose b
+        while IFS= read -r elem; do
+            local c
+            c=$(cardinality "$elem" | tr -d ' ')
+            if [[ $c -ge 2 ]]; then
+                local rest
+                rest=$(difference "$elem" "$sa") || return 1
+                choose "$rest"
+                return
+            fi
+        done < "$U/$1"
+        echo "ERROR: snd: not an ordered pair" >&2; return 1
+    fi
+}
+
+# is_opair p — true if p looks like a Kuratowski ordered pair
+is_opair() {
+    require "$1" || return 1
+    local n
+    n=$(cardinality "$1" | tr -d ' ')
+    [[ $n -eq 1 || $n -eq 2 ]] || return 1
+    while IFS= read -r elem; do
+        exists "$elem" || return 1
+        local c
+        c=$(cardinality "$elem" | tr -d ' ')
+        [[ $c -eq 1 ]] && return 0
+    done < "$U/$1"
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# Cartesian Product: A × B = {(a,b) : a ∈ A, b ∈ B}
+# ---------------------------------------------------------------------------
+
+cartesian() {
+    require "$1" || return 1
+    require "$2" || return 1
+    local B="$2"
+    local tmp
+    tmp=$(mktemp)
+    while IFS= read -r a; do
+        while IFS= read -r b; do
+            local p
+            p=$(opair "$a" "$b") || return 1
+            echo "$p" >> "$tmp"
+        done < "$U/$B"
+    done < "$U/$1"
+    commit_set "$tmp"
+}
+
+# ---------------------------------------------------------------------------
+# Relations (sets of ordered pairs)
+# ---------------------------------------------------------------------------
+
+# dom R — domain: {a : ∃b, (a,b) ∈ R}
+dom() {
+    require "$1" || return 1
+    local tmp
+    tmp=$(mktemp)
+    while IFS= read -r p; do
+        fst "$p" >> "$tmp" || return 1
+    done < "$U/$1"
+    commit_set "$tmp"
+}
+
+# ran R — range: {b : ∃a, (a,b) ∈ R}
+ran() {
+    require "$1" || return 1
+    local tmp
+    tmp=$(mktemp)
+    while IFS= read -r p; do
+        snd "$p" >> "$tmp" || return 1
+    done < "$U/$1"
+    commit_set "$tmp"
+}
+
+# rel_apply R a — relational image of a under R: {b : (a,b) ∈ R}
+rel_apply() {
+    require "$1" || return 1
+    require "$2" || return 1
+    local R="$1" a="$2"
+    local tmp
+    tmp=$(mktemp)
+    while IFS= read -r p; do
+        local first
+        first=$(fst "$p") || return 1
+        if [[ "$first" == "$a" ]]; then
+            snd "$p" >> "$tmp" || return 1
+        fi
+    done < "$U/$R"
+    commit_set "$tmp"
+}
+
+# is_function R A B — true if R is a function from A to B
+# (total, single-valued relation whose domain = A and range ⊆ B)
+is_function() {
+    require "$1" || return 1; require "$2" || return 1; require "$3" || return 1
+    local R="$1" A="$2" B="$3"
+    local d r
+    d=$(dom "$R") || return 1
+    eq "$d" "$A" || return 1
+    r=$(ran "$R") || return 1
+    subset "$r" "$B" || return 1
+    while IFS= read -r a; do
+        local img
+        img=$(rel_apply "$R" "$a") || return 1
+        local c
+        c=$(cardinality "$img" | tr -d ' ')
+        [[ $c -eq 1 ]] || return 1
+    done < "$U/$A"
+}
+
+# ---------------------------------------------------------------------------
+# Undecidability guard
+# ---------------------------------------------------------------------------
+
+# halts PROGRAM INPUT — you cannot decide this
+halts() {
+    echo "ERROR: Machine will get stuck! (Halting Problem — undecidable)" >&2
+    return 1
 }
 
 # ---------------------------------------------------------------------------

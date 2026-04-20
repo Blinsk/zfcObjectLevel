@@ -121,6 +121,50 @@ assert_true "∅ is regular" is_regular "∅"
 omega=$(build_omega 5)
 assert_card "ω_5 has 5 ordinals" "$omega" "5"
 
+# 14. Ordered pairs: fst and snd round-trip
+one=$(successor "∅")
+p=$(opair "∅" "$one")
+assert_true  "is_opair (∅,{∅})" is_opair "$p"
+assert_eq_sets "fst (∅,{∅}) = ∅"   "$(fst "$p")" "∅"
+assert_eq_sets "snd (∅,{∅}) = {∅}"  "$(snd "$p")" "$one"
+
+# 15. Diagonal pair: opair a a
+pp=$(opair "∅" "∅")
+assert_eq_sets "fst (∅,∅) = ∅" "$(fst "$pp")" "∅"
+assert_eq_sets "snd (∅,∅) = ∅" "$(snd "$pp")" "∅"
+
+# 16. opair is not symmetric: (∅,{∅}) ≠ ({∅},∅)
+q=$(opair "$one" "∅")
+assert_false "opair not symmetric" eq "$p" "$q"
+
+# 17. Cartesian product {∅} × {∅} = {(∅,∅)}
+s1=$(singleton "∅")
+cp1=$(cartesian "$s1" "$s1")
+assert_card "cartesian {∅}×{∅} has 1 element" "$cp1" "1"
+assert_true "cartesian {∅}×{∅} contains (∅,∅)" member "$pp" "$cp1"
+
+# 18. Cartesian product {∅,{∅}} × {∅} has 2 elements
+two=$(pair "∅" "$one")
+cp2=$(cartesian "$two" "$s1")
+assert_card "cartesian {∅,{∅}}×{∅} has 2 elements" "$cp2" "2"
+
+# 19. dom and ran of a relation
+R=$(cartesian "$two" "$s1")
+d=$(dom "$R")
+r=$(ran "$R")
+assert_eq_sets "dom of {∅,{∅}}×{∅} = {∅,{∅}}" "$d" "$two"
+assert_eq_sets "ran of {∅,{∅}}×{∅} = {∅}"    "$r" "$s1"
+
+# 20. is_function: {∅,{∅}}×{∅} is a function (constant map)
+assert_true "cartesian product as constant function" is_function "$R" "$two" "$s1"
+
+# 21. name-length guard triggers on very deep nesting
+deep="∅"
+for _ in 1 2 3 4 5 6 7; do deep=$(successor "$deep"); done
+seven="$deep"
+# power set of ordinal 7 would have 128 elements — names will blow up
+assert_false "power of ordinal 5 triggers size guard" power "$(build_ordinal 5)"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
