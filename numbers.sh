@@ -12,28 +12,28 @@ nat()     { build_ordinal "$1"; }
 # Set-theoretically: ∪α (the union of all elements of α).
 # For Von Neumann ordinals: ∪{0,1,...,n-1} = n-1.
 pred_ord() {
-    [[ -s "$U/$1" ]] || { echo "ERROR: ∅ has no predecessor" >&2; return 1; }
+    eq "$1" "∅" && { echo "ERROR: ∅ has no predecessor" >&2; return 1; }
     union "$1"
 }
 
-# α ∪ ∅            = α
-# α ∪ (β ∪ {β})   = nat_add(α,β) ∪ {nat_add(α,β)}
+# nat_add(α, ∅)       = α
+# nat_add(α, β ∪ {β}) = nat_add(α, β) ∪ { nat_add(α, β) }
 nat_add() {
     require "$1" || return 1
     require "$2" || return 1
-    [[ ! -s "$U/$2" ]] && echo "$1" && return
+    eq "$2" "∅" && echo "$1" && return
     local pred sum
     pred=$(pred_ord "$2") || return 1
     sum=$(nat_add "$1" "$pred") || return 1
     binary_union "$sum" "$(singleton "$sum")"
 }
 
-# α × ∅            = ∅
-# α × (β ∪ {β})   = nat_mul(α,β) ∪ α   (i.e. nat_add of the previous product)
+# nat_mul(α, ∅)       = ∅
+# nat_mul(α, β ∪ {β}) = nat_add( nat_mul(α, β), α )
 nat_mul() {
     require "$1" || return 1
     require "$2" || return 1
-    [[ ! -s "$U/$2" ]] && echo "∅" && return
+    eq "$2" "∅" && echo "∅" && return
     local pred prod
     pred=$(pred_ord "$2") || return 1
     prod=$(nat_mul "$1" "$pred") || return 1
